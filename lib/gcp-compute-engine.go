@@ -191,6 +191,8 @@ func Do() {
 	optInstanceName := flag.String("instance-name", "", "Instance Name")
 	optInstanceID := flag.String("instance-id", "", "Instance ID")
 	optAPIKey := flag.String("api-key", "", "API key")
+	flag.Parse()
+
 	ctx := context.Background()
 
 	client, err := google.DefaultClient(ctx, monitoring.CloudPlatformScope)
