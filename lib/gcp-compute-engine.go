@@ -144,10 +144,6 @@ func getLatestValue(listCall *monitoring.ProjectsTimeSeriesListCall, filter stri
 	return value, nil
 }
 
-func installedAgent() bool {
-	return false
-}
-
 func mkFilter(domain string, metricName string, instance string) string {
 	filter := `metric.type = "` + domain + metricName + `"`
 	switch domain {
@@ -185,19 +181,6 @@ func (p ComputeEnginePlugin) FetchMetrics() (map[string]float64, error) {
 		if err != nil {
 		}
 		stat[metricName] = value
-	}
-
-	if installedAgent() {
-		for _, metricName := range []string{
-			"/cpu/load_1m",
-			"/cpu/load_5m",
-			"/cpu/load_15m",
-		} {
-			value, err := getLatestValue(listCall, mkFilter(agentDomain, metricName, p.InstanceName), formattedStart, formattedEnd, p.Option)
-			if err != nil {
-			}
-			stat[metricName] = value
-		}
 	}
 
 	return stat, nil
