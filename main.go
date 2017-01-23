@@ -1,7 +1,7 @@
 package main
 
 import (
-	"./lib"
+	"github.com/littlekbt/mackerel-plugin-gcp-compute-engine/lib"
 )
 
 func main() {

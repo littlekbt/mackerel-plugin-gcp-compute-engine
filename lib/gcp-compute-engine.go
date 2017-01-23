@@ -27,7 +27,6 @@ type ComputeEnginePlugin struct {
 	Option            *Option
 }
 
-// googleapi.CallOption interface
 type Option struct {
 	Key string
 }
@@ -123,12 +122,8 @@ func (p ComputeEnginePlugin) GraphDefinition() map[string]mp.Graphs {
 func getLatestValue(listCall *monitoring.ProjectsTimeSeriesListCall, filter string, startTime string, endTime string, opts *Option) (float64, error) {
 	res, err := listCall.Filter(filter).IntervalEndTime(endTime).IntervalStartTime(startTime).Do(*opts)
 
-	if err != nil {
+	if err != nil || res == nil {
 		return 0, err
-	}
-
-	if res == nil {
-		fmt.Println("empty")
 	}
 
 	ps := res.TimeSeries[0].Points
@@ -179,6 +174,7 @@ func (p ComputeEnginePlugin) FetchMetrics() (map[string]float64, error) {
 	} {
 		value, err := getLatestValue(listCall, mkFilter(computeDomain, metricName, p.InstanceName), formattedStart, formattedEnd, p.Option)
 		if err != nil {
+			continue
 		}
 		stat[metricName] = value
 	}
@@ -197,13 +193,12 @@ func Do() {
 
 	client, err := google.DefaultClient(ctx, monitoring.CloudPlatformScope)
 	if err != nil {
-		// return nil, err
+		return
 	}
 
-	// create service
 	service, err := monitoring.New(client)
 	if err != nil {
-		// return nil, err
+		return
 	}
 
 	var computeEngine = ComputeEnginePlugin{
@@ -215,10 +210,6 @@ func Do() {
 	}
 
 	helper := mp.NewMackerelPlugin(computeEngine)
-
-	if err != nil {
-		//return nil, err
-	}
 
 	if os.Getenv("MACKEREL_AGENT_PLUGIN_META") != "" {
 		helper.OutputDefinitions()
