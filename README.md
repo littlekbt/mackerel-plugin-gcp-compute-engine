@@ -19,8 +19,6 @@ Google Monitoring APIを使い、mackerelがデフォルトで収集するメト
 
 ## Licence
 
-[MIT](https://github.com/tcnksm/tool/blob/master/LICENCE)
-
 ## Author
 
-[tcnksm](https://github.com/tcnksm)
+[littlekbt](https://github.com/littlekbt)
