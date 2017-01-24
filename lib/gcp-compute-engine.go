@@ -1,6 +1,7 @@
 package gcpce
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -19,6 +20,7 @@ const duration string = "3m0s"
 const computeDomain string = "compute.googleapis.com"
 const agentDomain string = "agent.googleapis.com"
 
+// ComputeEnginePlugin is mackerel plugin for Google Compute Engine
 type ComputeEnginePlugin struct {
 	Project           string
 	InstanceID        string
@@ -27,10 +29,12 @@ type ComputeEnginePlugin struct {
 	Option            *Option
 }
 
+// Option is optional argument to an API call
 type Option struct {
 	Key string
 }
 
+// Get returns key and value
 func (c Option) Get() (string, string) {
 	return "key", c.Key
 }
@@ -57,64 +61,41 @@ var graphdef = map[string]mp.Graphs{
 			{Name: "/instance/cpu/utilization", Label: "Utilization"},
 		},
 	},
-	"disk.read_bytes_count": mp.Graphs{
+	"disk.bytes_count": mp.Graphs{
 		Label: "Disk Read Bytes Count",
 		Unit:  "float",
 		Metrics: []mp.Metrics{
 			{Name: "/instance/disk/read_bytes_count", Label: "Read Bytes Count"},
+			{Name: "/instance/disk/write_bytes_count", Label: "Write Bytes Count"},
 		},
 	},
-	"disk.read_ops_count": mp.Graphs{
+	"disk.ops_count": mp.Graphs{
 		Label: "Disk Read Ops Count",
 		Unit:  "float",
 		Metrics: []mp.Metrics{
 			{Name: "/instance/disk/read_ops_count", Label: "Read Ops Count"},
-		},
-	},
-	"disk.write_bytes_count": mp.Graphs{
-		Label: "Disk Write Bytes Count",
-		Unit:  "float",
-		Metrics: []mp.Metrics{
-			{Name: "/instance/disk/write_bytes_count", Label: "Write Bytes Count"},
-		},
-	},
-	"disk.write_ops_count": mp.Graphs{
-		Label: "Disk Write Ops Count",
-		Unit:  "float",
-		Metrics: []mp.Metrics{
 			{Name: "/instance/disk/write_ops_count", Label: "Write Ops Count"},
 		},
 	},
-	"network.received_bytes_count": mp.Graphs{
+	"network.bytes_count": mp.Graphs{
 		Label: "Network Received Bytes Count",
 		Unit:  "float",
 		Metrics: []mp.Metrics{
 			{Name: "/instance/network/received_bytes_count", Label: "Received Bytes Count"},
+			{Name: "/instance/network/sent_bytes_count", Label: "Sent Bytes Count"},
 		},
 	},
-	"network.received_packets_count": mp.Graphs{
+	"network.packets_count": mp.Graphs{
 		Label: "Network Received Packets Count",
 		Unit:  "float",
 		Metrics: []mp.Metrics{
 			{Name: "/instance/network/received_packets_count", Label: "Received Packets Count"},
-		},
-	},
-	"network.sent_bytes_count": mp.Graphs{
-		Label: "Network Sent Bytes Count",
-		Unit:  "float",
-		Metrics: []mp.Metrics{
-			{Name: "/instance/network/sent_bytes_count", Label: "Sent Bytes Count"},
-		},
-	},
-	"network.sent_packets_count": mp.Graphs{
-		Label: "Network Sent Packets Count",
-		Unit:  "float",
-		Metrics: []mp.Metrics{
 			{Name: "/instance/network/sent_packets_count", Label: "Sent Packets Count"},
 		},
 	},
 }
 
+// GraphDefinition is return graphdef
 func (p ComputeEnginePlugin) GraphDefinition() map[string]mp.Graphs {
 	return graphdef
 }
@@ -151,6 +132,7 @@ func mkFilter(domain string, metricName string, instance string) string {
 	return filter
 }
 
+// FetchMetrics fetches metrics from Google Monitoring API
 func (p ComputeEnginePlugin) FetchMetrics() (map[string]float64, error) {
 	now := time.Now()
 	formattedEnd := now.Format(zuluFormat)
@@ -182,12 +164,18 @@ func (p ComputeEnginePlugin) FetchMetrics() (map[string]float64, error) {
 	return stat, nil
 }
 
+// Do the plugin
 func Do() {
 	optProject := flag.String("project", "", "Project No")
 	optInstanceName := flag.String("instance-name", "", "Instance Name")
 	optInstanceID := flag.String("instance-id", "", "Instance ID")
 	optAPIKey := flag.String("api-key", "", "API key")
 	flag.Parse()
+
+	if *optProject == "" || *optInstanceName == "" || *optInstanceID == "" || *optAPIKey == "" {
+		fmt.Println("Errors:", errors.New("Not enough arguments"))
+		return
+	}
 
 	ctx := context.Background()
 
