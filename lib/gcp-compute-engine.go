@@ -18,7 +18,6 @@ import (
 const zuluFormat string = "2006-01-02T15:4:05Z"
 const duration string = "3m0s"
 const computeDomain string = "compute.googleapis.com"
-const agentDomain string = "agent.googleapis.com"
 
 // ComputeEnginePlugin is mackerel plugin for Google Compute Engine
 type ComputeEnginePlugin struct {
@@ -125,8 +124,6 @@ func mkFilter(domain string, metricName string, instance string) string {
 	switch domain {
 	case computeDomain:
 		filter += " AND metric.label.instance_name = " + instance
-	case agentDomain:
-		filter += " AND resouce.label.instance_id = " + instance
 	}
 
 	return filter
