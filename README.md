@@ -20,9 +20,11 @@ mackerel-plugin-gcp-compute-engine [-api-key=<APIKey>] [-project=<project_id_or_
 
 
 ### Example of mackerel-agent.conf
+
 ```
 [plugin.metrics.gcp-compute-engine]
 command = "/path/to/mackerel-plugin-gcp-compute-engine/main" ... //arguments
+```
 
 ## Author
 
