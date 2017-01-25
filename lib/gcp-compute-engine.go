@@ -5,15 +5,15 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"time"
 	"strings"
+	"time"
 
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2/google"
 
 	"google.golang.org/api/monitoring/v3"
 
-	mp "github.com/mackerelio/go-mackerel-plugin"
+	mp "github.com/mackerelio/go-mackerel-plugin-helper"
 )
 
 const zuluFormat string = "2006-01-02T15:4:05Z"
@@ -43,14 +43,14 @@ var graphdef = map[string]mp.Graphs{
 		Label: "FireWall Dropped Bytes Count",
 		Unit:  "bytes",
 		Metrics: []mp.Metrics{
-			{Name: "dropped_bytes_count", Label: "Dropped Bytes Count"},
+			{Name: "dropped_bytes_count", Label: "Dropped Bytes Count", Type: "uint64"},
 		},
 	},
 	"Firewall.DroppedPacketsCount": mp.Graphs{
 		Label: "FireWall Dropped Packets Count",
-		Unit:  "float",
+		Unit:  "integer",
 		Metrics: []mp.Metrics{
-			{Name: "dropped_packets_count", Label: "Dropped Packets Count"},
+			{Name: "dropped_packets_count", Label: "Dropped Packets Count", Type: "uint64"},
 		},
 	},
 	"Cpu.Utilization": mp.Graphs{
@@ -64,32 +64,32 @@ var graphdef = map[string]mp.Graphs{
 		Label: "Disk Read Bytes Count",
 		Unit:  "bytes",
 		Metrics: []mp.Metrics{
-			{Name: "read_bytes_count", Label: "Read Bytes Count"},
-			{Name: "write_bytes_count", Label: "Write Bytes Count"},
+			{Name: "read_bytes_count", Label: "Read Bytes Count", Type: "uint64"},
+			{Name: "write_bytes_count", Label: "Write Bytes Count", Type: "uint64"},
 		},
 	},
 	"Disk.OpsCount": mp.Graphs{
 		Label: "Disk Read Ops Count",
-		Unit:  "float",
+		Unit:  "integer",
 		Metrics: []mp.Metrics{
-			{Name: "read_ops_count", Label: "Read Ops Count"},
-			{Name: "write_ops_count", Label: "Write Ops Count"},
+			{Name: "read_ops_count", Label: "Read Ops Count", Type: "uint64"},
+			{Name: "write_ops_count", Label: "Write Ops Count", Type: "uint64"},
 		},
 	},
 	"Network.BytesCount": mp.Graphs{
 		Label: "Network Received Bytes Count",
 		Unit:  "bytes",
 		Metrics: []mp.Metrics{
-			{Name: "received_bytes_count", Label: "Received Bytes Count"},
-			{Name: "sent_bytes_count", Label: "Sent Bytes Count"},
+			{Name: "received_bytes_count", Label: "Received Bytes Count", Type: "uint64"},
+			{Name: "sent_bytes_count", Label: "Sent Bytes Count", Type: "uint64"},
 		},
 	},
 	"Network.PacketsCount": mp.Graphs{
 		Label: "Network Received Packets Count",
-		Unit:  "float",
+		Unit:  "integer",
 		Metrics: []mp.Metrics{
-			{Name: "received_packets_count", Label: "Received Packets Count"},
-			{Name: "sent_packets_count", Label: "Sent Packets Count"},
+			{Name: "received_packets_count", Label: "Received Packets Count", Type: "uint64"},
+			{Name: "sent_packets_count", Label: "Sent Packets Count", Type: "uint64"},
 		},
 	},
 }
@@ -99,7 +99,7 @@ func (p ComputeEnginePlugin) GraphDefinition() map[string]mp.Graphs {
 	return graphdef
 }
 
-func getLatestValue(listCall *monitoring.ProjectsTimeSeriesListCall, filter string, startTime string, endTime string, opts *Option) (float64, error) {
+func getLatestValue(listCall *monitoring.ProjectsTimeSeriesListCall, filter string, startTime string, endTime string, opts *Option) (interface{}, error) {
 	res, err := listCall.Filter(filter).IntervalEndTime(endTime).IntervalStartTime(startTime).Do(*opts)
 
 	if err != nil || res == nil {
@@ -108,14 +108,14 @@ func getLatestValue(listCall *monitoring.ProjectsTimeSeriesListCall, filter stri
 
 	valuePtr := res.TimeSeries[0].Points[0].Value
 
-	var value float64
 	if valuePtr.Int64Value != nil {
-		value = float64(*valuePtr.Int64Value)
+		return uint64(*valuePtr.Int64Value), nil
 	} else if valuePtr.DoubleValue != nil {
-		value = *valuePtr.DoubleValue
+		return *valuePtr.DoubleValue, nil
+	} else {
+		return 0, nil
 	}
 
-	return value, nil
 }
 
 func mkFilter(domain string, metricName string, instance string) string {
@@ -129,14 +129,14 @@ func mkFilter(domain string, metricName string, instance string) string {
 }
 
 // FetchMetrics fetches metrics from Google Monitoring API
-func (p ComputeEnginePlugin) FetchMetrics() (map[string]float64, error) {
+func (p ComputeEnginePlugin) FetchMetrics() (map[string]interface{}, error) {
 	now := time.Now()
 	formattedEnd := now.Format(zuluFormat)
 	m, _ := time.ParseDuration(duration)
 	formattedStart := now.Add(-m).Format(zuluFormat)
 	listCall := p.MonitoringService.Projects.TimeSeries.List(p.Project)
 
-	stat := map[string]float64{}
+	stat := map[string]interface{}{}
 	for _, metricName := range []string{
 		"/firewall/dropped_bytes_count",
 		"/firewall/dropped_packets_count",
@@ -155,7 +155,7 @@ func (p ComputeEnginePlugin) FetchMetrics() (map[string]float64, error) {
 			continue
 		}
 		splited := strings.Split(metricName, "/")
-		stat[splited[len(splited) - 1]] = value
+		stat[splited[len(splited)-1]] = value
 	}
 
 	return stat, nil
