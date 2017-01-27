@@ -106,16 +106,26 @@ func getLatestValue(listCall *monitoring.ProjectsTimeSeriesListCall, filter stri
 		return 0, err
 	}
 
-	valuePtr := res.TimeSeries[0].Points[0].Value
-
-	if valuePtr.Int64Value != nil {
-		return uint64(*valuePtr.Int64Value), nil
-	} else if valuePtr.DoubleValue != nil {
-		return *valuePtr.DoubleValue, nil
-	} else {
-		return 0, nil
+	var sum interface{}
+	p := res.TimeSeries[0].Points[0].Value
+	// init sum value
+	if p.Int64Value != nil {
+		sum = uint64(0)
+	} else if p.DoubleValue != nil {
+		sum = float64(0)
 	}
 
+	for _, series := range res.TimeSeries {
+		valuePtr := series.Points[0].Value
+		if valuePtr.Int64Value != nil {
+			// to inject value, need assersion
+			sum = sum.(uint64) + uint64(*valuePtr.Int64Value)
+		} else if valuePtr.DoubleValue != nil {
+			sum = sum.(float64) + *valuePtr.DoubleValue
+		}
+	}
+
+	return sum, nil
 }
 
 func mkFilter(domain string, metricName string, instance string) string {
