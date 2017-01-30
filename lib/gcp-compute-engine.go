@@ -4,7 +4,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
+	"io/ioutil"
+	"net/http"
 	"strings"
 	"time"
 
@@ -26,6 +27,7 @@ type ComputeEnginePlugin struct {
 	InstanceName      string
 	MonitoringService *monitoring.Service
 	Option            *Option
+	Tempfile          string
 }
 
 // Option is optional argument to an API call
@@ -171,16 +173,61 @@ func (p ComputeEnginePlugin) FetchMetrics() (map[string]interface{}, error) {
 	return stat, nil
 }
 
+func getMetaData(url string) string {
+	httpClient := &http.Client{Timeout: time.Duration(10) * time.Second}
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return ""
+	}
+	req.Header.Add("Metadata-Flavor", "Google")
+
+	res, err := httpClient.Do(req)
+	if err != nil {
+		return ""
+	}
+
+	b, _ := ioutil.ReadAll(res.Body)
+	return string(b)
+}
+
+func getProjectID() string {
+	projectID := getMetaData("http://metadata.google.internal/computeMetadata/v1/project/project-id")
+
+	if projectID == "" {
+		return ""
+	}
+
+	return projectID
+}
+
+func getInstanceName() string {
+	hostName := getMetaData("http://metadata.google.internal/computeMetadata/v1/instance/hostname")
+
+	if hostName == "" {
+		return ""
+	}
+
+	return strings.Split(hostName, ".")[0]
+}
+
 // Do the plugin
 func Do() {
-	optProject := flag.String("project", "", "Project No")
-	optInstanceName := flag.String("instance-name", "", "Instance Name")
 	optAPIKey := flag.String("api-key", "", "API key")
+	optTempfile := flag.String("tempfile", "", "Temp file name")
+
 	flag.Parse()
 
-	if *optProject == "" || *optInstanceName == "" || *optAPIKey == "" {
-		fmt.Println("Errors:", errors.New("Not enough arguments"))
+	if *optAPIKey == "" {
+		fmt.Println("Errors:", errors.New("Not enough arguments."))
 		return
+	}
+
+	projectID := getProjectID()
+	instanceName := getInstanceName()
+
+	if projectID == "" || instanceName == "" {
+		fmt.Println("Errors:", errors.New("Can not get project id or instance name."))
 	}
 
 	ctx := context.Background()
@@ -197,16 +244,17 @@ func Do() {
 
 	var computeEngine = ComputeEnginePlugin{
 		MonitoringService: service,
-		Project:           "projects/" + *optProject,
-		InstanceName:      *optInstanceName,
+		Project:           "projects/" + projectID,
+		InstanceName:      instanceName,
 		Option:            &Option{Key: *optAPIKey},
 	}
 
 	helper := mp.NewMackerelPlugin(computeEngine)
-
-	if os.Getenv("MACKEREL_AGENT_PLUGIN_META") != "" {
-		helper.OutputDefinitions()
+	if *optTempfile != "" {
+		helper.Tempfile = *optTempfile
 	} else {
-		helper.OutputValues()
+		helper.Tempfile = fmt.Sprintf("/tmp/mackerel-plugin-gcp-compute-engine-%s", computeEngine.InstanceName)
 	}
+
+	helper.Run()
 }
