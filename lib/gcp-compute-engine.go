@@ -110,7 +110,6 @@ func getLatestValue(listCall *monitoring.ProjectsTimeSeriesListCall, filter stri
 
 	var sum interface{}
 	p := res.TimeSeries[0].Points[0].Value
-	// init sum value
 	if p.Int64Value != nil {
 		sum = uint64(0)
 	} else if p.DoubleValue != nil {
@@ -120,7 +119,6 @@ func getLatestValue(listCall *monitoring.ProjectsTimeSeriesListCall, filter stri
 	for _, series := range res.TimeSeries {
 		valuePtr := series.Points[0].Value
 		if valuePtr.Int64Value != nil {
-			// to inject value, need assersion
 			sum = sum.(uint64) + uint64(*valuePtr.Int64Value)
 		} else if valuePtr.DoubleValue != nil {
 			sum = sum.(float64) + *valuePtr.DoubleValue
